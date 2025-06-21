@@ -1,0 +1,198 @@
+'use client';
+
+import { useState, useEffect } from "react";
+import { useAuth } from "@/lib/auth-context";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+
+interface AnimationPlayerProps {
+  className?: string;
+}
+
+export default function AnimationPlayer({ className }: AnimationPlayerProps) {
+  const { token } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [animationUrl, setAnimationUrl] = useState<string | null>(null);
+  const [apiStatus, setApiStatus] = useState<'checking' | 'connected' | 'error'>('checking');
+  const [apiBaseUrl, setApiBaseUrl] = useState<string>('');
+
+  // Check API connectivity on mount
+  useEffect(() => {
+    const checkApiConnectivity = async () => {
+      try {
+        setApiStatus('checking');
+        const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://10.200.6.212:5001/api';
+        setApiBaseUrl(API_URL);
+        
+        // Try to connect to the debug endpoint
+        const response = await fetch(`${API_URL}/animation/debug`, {
+          method: 'GET',
+          headers: token ? {
+            'Authorization': `Bearer ${token}`
+          } : {}
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          console.log('API debug info:', data);
+          setApiStatus('connected');
+        } else {
+          console.error('API connectivity check failed:', response.status);
+          setApiStatus('error');
+        }
+      } catch (err) {
+        console.error('API connectivity error:', err);
+        setApiStatus('error');
+      }
+    };
+    
+    checkApiConnectivity();
+  }, [token]);
+
+  const animations = [
+    { id: 'circle', name: 'Create Circle' },
+    { id: 'square_to_circle', name: 'Square to Circle' },
+    { id: 'text', name: 'Write Text' },
+    { id: 'math', name: 'Math Formula' },
+  ];
+
+  const renderAnimation = async (animationType: string) => {
+    if (apiStatus !== 'connected') {
+      setError("API connection not available. Please wait or refresh the page.");
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      // Try the normal endpoint first, and if that fails, try the debug endpoint
+      let useDebugEndpoint = false;
+      let endpoint = 'render';
+      let retryCount = 0;
+      let maxRetries = 1;
+      
+      while (retryCount <= maxRetries) {
+        if (useDebugEndpoint) {
+          endpoint = 'render-debug';
+        }
+        
+        const animationUrl = `${apiBaseUrl}/animation/${endpoint}`;
+        console.log(`Sending animation request to ${animationUrl} ${useDebugEndpoint ? '(debug)' : ''}`);
+        console.log(`Token available: ${!!token}`);
+        
+        const headers: HeadersInit = {
+          'Content-Type': 'application/json',
+        };
+        
+        // Only add auth header if token exists
+        if (token) {
+          console.log('Adding Authorization header');
+          headers['Authorization'] = `Bearer ${token}`;
+        } else {
+          console.log('No token available - sending request without Authorization header');
+        }
+        
+        const response = await fetch(animationUrl, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ animation_type: animationType })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+          setAnimationUrl(data.animation_url);
+          return; // Success, exit the retry loop
+        } else if (response.status === 401 && !useDebugEndpoint) {
+          // If we get a 401 unauthorized, try the debug endpoint
+          console.log('Got 401 response, trying debug endpoint');
+          useDebugEndpoint = true;
+          retryCount++;
+        } else {
+          // Any other error
+          setError(data.error || "Failed to render animation");
+          return;
+        }
+      }
+    } catch (err) {
+      setError("An error occurred while rendering the animation");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className={`space-y-4 ${className}`}>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-2xl font-bold">Math Animations</h2>
+        <div className="flex items-center">
+          <span className="mr-2">API Status:</span>
+          {apiStatus === 'checking' && (
+            <span className="text-yellow-500 flex items-center">
+              <div className="w-2 h-2 rounded-full bg-yellow-500 mr-1 animate-pulse"></div>
+              Checking...
+            </span>
+          )}
+          {apiStatus === 'connected' && (
+            <span className="text-green-500 flex items-center">
+              <div className="w-2 h-2 rounded-full bg-green-500 mr-1"></div>
+              Connected
+            </span>
+          )}
+          {apiStatus === 'error' && (
+            <span className="text-red-500 flex items-center">
+              <div className="w-2 h-2 rounded-full bg-red-500 mr-1"></div>
+              Error
+            </span>
+          )}
+        </div>
+      </div>
+      
+      <div className="grid grid-cols-2 gap-2 mb-4">
+        {animations.map((anim) => (
+          <Button 
+            key={anim.id}
+            onClick={() => renderAnimation(anim.id)}
+            disabled={loading || apiStatus !== 'connected'}
+            variant="outline"
+            className="h-16"
+          >
+            {anim.name}
+          </Button>
+        ))}
+      </div>
+      
+      {loading && (
+        <div className="text-center py-4">
+          <div className="inline-block animate-spin h-6 w-6 border-2 border-current border-t-transparent rounded-full"></div>
+          <p className="mt-2">Rendering animation...</p>
+        </div>
+      )}
+      
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+          {error}
+          {!token && (
+            <div className="mt-2 font-bold">
+              Authentication error: You need to log in again.
+            </div>
+          )}
+        </div>
+      )}
+      
+      {animationUrl && !loading && (
+        <Card className="p-2">
+          <video 
+            src={animationUrl} 
+            controls 
+            autoPlay 
+            className="w-full rounded" 
+          />
+        </Card>
+      )}
+    </div>
+  );
+}
