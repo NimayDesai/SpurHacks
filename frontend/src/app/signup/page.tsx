@@ -12,10 +12,13 @@ import {
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { signUp } from "@/lib/services/auth";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 const signupSchema = z
   .object({
-    name: z.string().min(2, "Name must be at least 2 characters"),
+    username: z.string().min(2, "Username must be at least 2 characters"),
     email: z.string().email("Invalid email address"),
     password: z
       .string()
@@ -33,6 +36,10 @@ const signupSchema = z
 type SignupForm = z.infer<typeof signupSchema>;
 
 export default function SignupPage() {
+  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   const {
     register,
     handleSubmit,
@@ -41,9 +48,20 @@ export default function SignupPage() {
     resolver: zodResolver(signupSchema),
   });
 
-  const onSubmit = (data: SignupForm) => {
-    console.log(data);
-    // Handle signup logic here
+  const onSubmit = async (data: SignupForm) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      await signUp(data.username, data.email, data.password);
+
+      // Redirect to login page on successful signup
+      router.push("/login?registered=true");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to sign up");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -56,17 +74,22 @@ export default function SignupPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+              {error}
+            </div>
+          )}
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Full Name</Label>
+              <Label htmlFor="username">Username</Label>
               <Input
-                id="name"
+                id="username"
                 type="text"
-                placeholder="Enter your full name"
-                {...register("name")}
+                placeholder="Enter your username"
+                {...register("username")}
               />
-              {errors.name && (
-                <p className="text-sm text-red-500">{errors.name.message}</p>
+              {errors.username && (
+                <p className="text-sm text-red-500">{errors.username.message}</p>
               )}
             </div>
             <div className="space-y-2">
@@ -109,8 +132,8 @@ export default function SignupPage() {
                 </p>
               )}
             </div>
-            <Button type="submit" className="w-full">
-              Create Account
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? "Creating Account..." : "Create Account"}
             </Button>
             <div className="text-center text-sm">
               <span className="text-muted-foreground">
