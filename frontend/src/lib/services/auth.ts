@@ -2,7 +2,7 @@
  * API service for authentication
  */
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://10.200.6.212:5001/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://10.200.6.214:5001/api';
 
 export interface User {
   id: number;
