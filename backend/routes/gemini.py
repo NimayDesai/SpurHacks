@@ -27,7 +27,22 @@ def generate_response():
             return jsonify({"error": "No data provided"}), 400
         
         prompt = data.get('prompt')
-        instructions = data.get('instructions', 'The user has requested an instructive explanation of the provided topic. I need you to create a 30-second video using the Manim library to create an animated explanation of the following topic.  Alongside that, create a script of what the video should be presenting and saying with appropriate time stamps')
+        instructions = data.get(
+            """
+               You will be given a topic.
+
+Your task is to write a high-quality educational narration script in the style of a 3Blue1Brown video, based on that topic.
+
+Instructions:
+1. The script should be approximately 200 words in length.
+2. Write it as continuous narration — the exact words that would be spoken in a video.
+3. Do not include speaker labels, scene directions, formatting, emojis, or visual references of any kind.
+4. The narration should flow naturally, guiding the viewer from intuition to insight.
+5. Focus on clarity and conceptual understanding. You may use analogies, rhetorical questions, or simple build-up, but no lists or definitions without context.
+6. Do not explain what will be shown visually — only the narration that would accompany those visuals.
+
+The result should feel like the voiceover from a 3Blue1Brown video: elegant, thoughtful, and tightly focused on the concept.             
+    """)
         
         if not prompt:
             return jsonify({"error": "Prompt is required"}), 400
