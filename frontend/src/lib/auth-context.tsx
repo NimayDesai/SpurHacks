@@ -40,9 +40,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               .then(response => {
                 // Update with fresh user data from server
                 setUser(response.user);
+                console.log('Token successfully validated');
               })
               .catch(error => {
                 console.error('Token validation failed:', error);
+                console.error('Token validation status:', error.status);
+                
+                // Log the actual token being used for debugging (don't log the entire token in production)
+                if (storedToken) {
+                  console.log('Token starts with:', storedToken.substring(0, 10) + '...');
+                }
+                
                 // If token is invalid, clear everything
                 setUser(null);
                 setToken(null);

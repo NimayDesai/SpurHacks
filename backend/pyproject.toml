@@ -9,5 +9,6 @@ dependencies = [
     "flask-sqlalchemy",
     "flask-bcrypt",
     "flask-jwt-extended",
-    "flask-cors"
+    "flask-cors",
+    "manim"
 ]

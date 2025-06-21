@@ -3,12 +3,11 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { ChatInterface } from "@/components/chat-interface";
 import AnimationPlayer from "@/components/animation-player";
 import { useAuth } from "@/lib/auth-context";
 
 export default function Home() {
-  const { user, token, isLoading, logout } = useAuth();
+  const { user, isLoading, logout } = useAuth();
   const router = useRouter();
   
   useEffect(() => {
@@ -43,17 +42,8 @@ export default function Home() {
       </header>
       
       <main className="p-6">
-        <div className="grid md:grid-cols-2 gap-8">
-          <div className="space-y-6">
-            <h2 className="text-2xl font-bold">Chat</h2>
-            <div className="h-[500px] border rounded-lg overflow-hidden">
-              <ChatInterface />
-            </div>
-          </div>
-          
-          <div className="space-y-6">
-            <AnimationPlayer />
-          </div>
+        <div className="max-w-4xl mx-auto">
+          <AnimationPlayer />
         </div>
       </main>
     </div>

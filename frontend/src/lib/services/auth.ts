@@ -98,18 +98,35 @@ export const logout = async (token: string): Promise<{ message: string }> => {
  * Get the current user
  */
 export const getCurrentUser = async (token: string): Promise<{ user: User }> => {
-  const response = await fetch(`${API_URL}/auth/me`, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-    },
-  });
+  console.log('Getting current user with token length:', token?.length);
+  console.log('API URL:', `${API_URL}/auth/me`);
 
-  if (!response.ok) {
-    const errorData: AuthError = await response.json();
-    throw new Error(errorData.error || 'Failed to get user');
+  try {
+    const response = await fetch(`${API_URL}/auth/me`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    console.log('Current user response status:', response.status);
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('Auth error details:', errorData);
+      
+      // Create enhanced error with status code
+      const error = new Error(errorData.error || 'Failed to get user') as any;
+      error.status = response.status;
+      throw error;
+    }
+
+    const data = await response.json();
+    console.log('Current user retrieved successfully');
+    return data;
+  } catch (error) {
+    console.error('Error in getCurrentUser:', error);
+    throw error;
   }
-
-  return response.json();
 };

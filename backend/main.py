@@ -24,6 +24,8 @@ def create_app():
     app.config['JWT_HEADER_NAME'] = 'Authorization'
     app.config['JWT_HEADER_TYPE'] = 'Bearer'
     app.config['JWT_ERROR_MESSAGE_KEY'] = 'error'
+    # Make sure JSON responses can be properly returned from JWT-protected routes
+    app.config['PROPAGATE_EXCEPTIONS'] = True
     
     # Initialize extensions
     db.init_app(app)
