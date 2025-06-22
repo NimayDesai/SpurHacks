@@ -446,20 +446,23 @@ config.tex_template.add_to_preamble(r"\\usepackage{{physics}}")
             # Get relative path for serving
             video_filename = os.path.basename(video_path)
             video_relative_path = f"media/videos/{os.path.splitext(filename)[0]}/480p15/{video_filename}"
-
-            # Double video speed via ffmpeg post-processing
+            # Speed up video playback by 2x
+            speed_factor = 2.0
+            pts_factor = 1 / speed_factor
             fast_basename = os.path.splitext(video_filename)[0] + "_fast.mp4"
             fast_path = os.path.join(os.path.dirname(video_path), fast_basename)
             subprocess.run([
                 "ffmpeg", "-y", "-i", video_path,
-                "-filter:v", "setpts=0.5*PTS",
-                "-filter:a", "atempo=2.3",
+                "-filter:v", f"setpts={pts_factor}*PTS",
+                "-an",
                 fast_path
             ], check=True)
             # Update to use sped-up video
             video_filename = fast_basename
             video_relative_path = f"media/videos/{os.path.splitext(filename)[0]}/480p15/{video_filename}"
-            
+
+            # Step 4b: Murf TTS integration temporarily disabled
+            # TODO: re-enable Murf TTS once API calls and syntax are verified
         except subprocess.TimeoutExpired:
             return jsonify({
                 "success": False,

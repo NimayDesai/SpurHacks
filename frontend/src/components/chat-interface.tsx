@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -32,17 +32,8 @@ function PresentationDisplay({ presentationData }: { presentationData: Presentat
   const [aiConversationUrl, setAiConversationUrl] = useState<string | null>(null);
   const [videoError, setVideoError] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [micAllowed, setMicAllowed] = useState(false);
-  // Request microphone permission and enable mic toggle
-  const handleEnableMic = async () => {
-    try {
-      await navigator.mediaDevices.getUserMedia({ audio: true });
-      setMicAllowed(true);
-    } catch (err) {
-      console.error('Microphone permission denied', err);
-      alert('Microphone permission is required for the AI tutor to speak.');
-    }
-  };
+  // Track if video has started playing on AI speech
+  const [hasPlayed, setHasPlayed] = useState(false);
 
   const requestAiAgent = async () => {
     setAiAgentLoading(true);
@@ -64,13 +55,11 @@ function PresentationDisplay({ presentationData }: { presentationData: Presentat
       const data = await response.json();
 
       if (data.success) {
-        // Initialize AI and then play video
         setAiConversationUrl(data.agent_data.conversation_url);
         setAiAgentActive(true);
-        // Start video playback once AI agent is active
+        // Play video immediately after joining meeting
         if (videoRef.current) {
-          // Set playback speed and play video
-          videoRef.current.playbackRate = 2.3;
+          videoRef.current.playbackRate = 2.0;
           videoRef.current.play().catch(() => {});
         }
         console.log('AI agent created successfully:', data.agent_data);
@@ -85,8 +74,6 @@ function PresentationDisplay({ presentationData }: { presentationData: Presentat
       setAiAgentLoading(false);
     }
   };
-
-  // useEffect removed: video starts in requestAiAgent when AI agent active
 
   return (
     <div className="space-y-4 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-950/20 dark:to-blue-950/20 p-6 rounded-lg border">
@@ -145,20 +132,11 @@ function PresentationDisplay({ presentationData }: { presentationData: Presentat
               {/* AI iframe */}
               <div className="flex-1 aspect-video bg-black rounded-md overflow-hidden relative">
                 <iframe
-                  key={micAllowed ? 'mic-on' : 'mic-off'}
                   src={aiConversationUrl!}
                   className="w-full h-full border-0"
-                  // Include microphone permission when allowed
-                  allow={`camera;${micAllowed ? ' microphone;' : ''} autoplay; fullscreen`}
+                  allow="camera; microphone; autoplay; fullscreen"
                   title="AI Conversation"
                 />
-                {!micAllowed && (
-                  <div className="absolute top-2 right-2 z-10">
-                    <Button size="sm" variant="secondary" onClick={handleEnableMic}>
-                      Enable Mic
-                    </Button>
-                  </div>
-                )}
               </div>
 
               {/* Video Playback */}
@@ -167,7 +145,7 @@ function PresentationDisplay({ presentationData }: { presentationData: Presentat
                   ref={videoRef}
                   src={presentationData.video_url}
                   controls
-                  muted
+                  muted={false}
                   className="w-full h-full"
                 />
               </div>

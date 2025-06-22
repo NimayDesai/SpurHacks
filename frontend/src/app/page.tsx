@@ -15,9 +15,8 @@ export default function Home() {
   
   useEffect(() => {
     if (!isLoading && !user) {
-      console.log('No user logged in, but allowing access for testing');
-      // Temporarily comment out redirect for testing
-      // router.push('/login');
+      // Redirect unauthenticated users to login
+      router.push('/login');
     }
   }, [user, isLoading, router]);
 
@@ -37,10 +36,10 @@ export default function Home() {
     );
   }
 
-  // Temporarily allow access without login for testing
-  // if (!user) {
-  //   return null; // Will redirect in the useEffect
-  // }
+  // Block rendering until authenticated
+  if (!isLoading && !user) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -56,7 +55,7 @@ export default function Home() {
         <div className="max-w-6xl mx-auto space-y-8">
           {/* Quick Actions */}
           <div className="text-center space-y-4">
-            <h2 className="text-3xl font-bold">Welcome to SpurHacks</h2>
+            <h2 className="text-3xl font-bold">Welcome to Numina</h2>
             <p className="text-gray-600">Start a video call or generate animations</p>
             <div className="flex justify-center gap-4">
               {/* <Button 
