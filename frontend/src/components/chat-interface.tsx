@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Send } from "lucide-react";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { useAuth } from "@/lib/auth-context";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface Message {
   id: string;
@@ -15,24 +16,37 @@ interface Message {
 }
 
 export function ChatInterface() {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: "welcome",
+      content: "Hi there! I'm your AI assistant. How can I help you learn today?",
+      role: "assistant",
+      timestamp: new Date(),
+    },
+  ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const { token, user } = useAuth();
+  
+  // API URL - use environment variable or default
+  const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
 
   // Auto-resize textarea
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
       textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+      textareaRef.current.style.maxHeight = "200px"; // Limit height
     }
   }, [input]);
 
   // Scroll to bottom when new message is added
   useEffect(() => {
     if (scrollAreaRef.current) {
-      scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
+      const scrollElement = scrollAreaRef.current;
+      scrollElement.scrollTop = scrollElement.scrollHeight;
     }
   }, [messages]);
 
@@ -51,17 +65,53 @@ export function ChatInterface() {
     setInput("");
     setIsLoading(true);
 
-    // Simulate AI response
-    setTimeout(() => {
-      const assistantMessage: Message = {
+    try {
+      // Get the latest message as the prompt
+      const prompt = userMessage.content;
+      
+      // Make API call to generate endpoint instead of chat endpoint
+      const response = await fetch(`${apiBaseUrl}/gemini/generate`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { "Authorization": `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          prompt: prompt,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`API Error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.success) {
+        const assistantMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          content: data.response,
+          role: "assistant",
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, assistantMessage]);
+      } else {
+        throw new Error(data.error || "Failed to get response");
+      }
+    } catch (error) {
+      console.error("Error calling Gemini API:", error);
+      
+      // Show error message to user
+      const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
-        content: "I understand your message. This is a simulated response.",
+        content: "Sorry, I encountered an error connecting to the AI. Please try again later.",
         role: "assistant",
         timestamp: new Date(),
       };
-      setMessages((prev) => [...prev, assistantMessage]);
+      setMessages((prev) => [...prev, errorMessage]);
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -72,111 +122,85 @@ export function ChatInterface() {
   };
 
   return (
-    <div className="h-screen bg-background relative">
-      {/* Theme Toggle */}
-      <div className="absolute top-4 right-4 z-10">
-        <ThemeToggle />
-      </div>
-
-      {messages.length === 0 ? (
-        <div className="flex items-center justify-center h-full">
-          <div className="text-center space-y-8 max-w-2xl px-4">
-            <div className="space-y-4">
-              <h1 className="text-4xl font-bold">How can I help you today?</h1>
-              <p className="text-muted-foreground">
-                Start a conversation by typing a message below.
-              </p>
-            </div>
-            <div className="w-full">
-              <form onSubmit={handleSubmit} className="relative">
-                <Textarea
-                  ref={textareaRef}
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Ask me anything..."
-                  className="min-h-[60px] max-h-40 resize-none pr-12 text-base border-2 focus:border-primary/50 rounded-xl w-full"
-                  disabled={isLoading}
-                />
-                <Button
-                  type="submit"
-                  size="sm"
-                  className="absolute right-3 bottom-3 h-8 w-8 p-0 rounded-lg"
-                  disabled={!input.trim() || isLoading}
+    <div className="flex flex-col h-full">
+      <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
+        <div className="space-y-4">
+          {messages.map((message) => (
+            <div
+              key={message.id}
+              className={`flex ${
+                message.role === "user" ? "justify-end" : "justify-start"
+              }`}
+            >
+              <div
+                className={`flex items-start gap-2.5 max-w-3xl ${
+                  message.role === "user" ? "flex-row-reverse" : ""
+                }`}
+              >
+                {message.role === "assistant" ? (
+                  <Avatar>
+                    <AvatarFallback>AI</AvatarFallback>
+                    <AvatarImage src="/robot.png" alt="AI" />
+                  </Avatar>
+                ) : (
+                  <Avatar>
+                    <AvatarFallback>
+                      {user?.username?.charAt(0) || "U"}
+                    </AvatarFallback>
+                    <AvatarImage src={user?.avatar} alt={user?.username} />
+                  </Avatar>
+                )}
+                <div
+                  className={`px-4 py-2 rounded-lg ${
+                    message.role === "user"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted"
+                  }`}
                 >
-                  <Send className="w-4 h-4" />
-                </Button>
-              </form>
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="flex flex-col h-screen">
-          {/* Messages */}
-          <ScrollArea className="flex-1 px-4 py-8" ref={scrollAreaRef}>
-            <div className="max-w-4xl mx-auto space-y-8">
-              {messages.map((message) => (
-                <div key={message.id} className="space-y-2">
-                  <div className="text-sm font-medium text-muted-foreground">
-                    {message.role === "user" ? "You" : "Assistant"}
-                  </div>
-                  <div className="prose prose-sm max-w-none">
-                    <p className="text-foreground leading-relaxed whitespace-pre-wrap">
-                      {message.content}
-                    </p>
-                  </div>
+                  <p className="whitespace-pre-wrap text-sm">{message.content}</p>
+                  <span className="text-xs opacity-50 block mt-1">
+                    {message.timestamp.toLocaleTimeString()}
+                  </span>
                 </div>
-              ))}
-
-              {isLoading && (
-                <div className="space-y-2">
-                  <div className="text-sm font-medium text-muted-foreground">
-                    Assistant
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <div className="w-2 h-2 bg-muted-foreground/60 rounded-full animate-bounce"></div>
-                    <div
-                      className="w-2 h-2 bg-muted-foreground/60 rounded-full animate-bounce"
-                      style={{ animationDelay: "0.1s" }}
-                    ></div>
-                    <div
-                      className="w-2 h-2 bg-muted-foreground/60 rounded-full animate-bounce"
-                      style={{ animationDelay: "0.2s" }}
-                    ></div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </ScrollArea>
-
-          {/* Input */}
-          <div className="border-t bg-background p-4">
-            <div className="flex justify-center">
-              <div className="w-full max-w-2xl">
-                <form onSubmit={handleSubmit} className="relative">
-                  <Textarea
-                    ref={textareaRef}
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    placeholder="Ask me anything..."
-                    className="min-h-[60px] max-h-40 resize-none pr-12 text-base border-2 focus:border-primary/50 rounded-xl w-full"
-                    disabled={isLoading}
-                  />
-                  <Button
-                    type="submit"
-                    size="sm"
-                    className="absolute right-3 bottom-3 h-8 w-8 p-0 rounded-lg"
-                    disabled={!input.trim() || isLoading}
-                  >
-                    <Send className="w-4 h-4" />
-                  </Button>
-                </form>
               </div>
             </div>
-          </div>
+          ))}
+          {isLoading && (
+            <div className="flex justify-start">
+              <div className="flex items-center gap-2.5">
+                <Avatar>
+                  <AvatarFallback>AI</AvatarFallback>
+                  <AvatarImage src="/robot.png" alt="AI" />
+                </Avatar>
+                <div className="px-4 py-2 rounded-lg bg-muted">
+                  <div className="flex gap-1">
+                    <div className="w-2 h-2 rounded-full bg-current animate-bounce" style={{ animationDelay: "0ms" }}></div>
+                    <div className="w-2 h-2 rounded-full bg-current animate-bounce" style={{ animationDelay: "150ms" }}></div>
+                    <div className="w-2 h-2 rounded-full bg-current animate-bounce" style={{ animationDelay: "300ms" }}></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
-      )}
+      </ScrollArea>
+
+      <div className="p-4 border-t">
+        <form onSubmit={handleSubmit} className="flex gap-2">
+          <Textarea
+            ref={textareaRef}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Type a message..."
+            className="resize-none min-h-[40px]"
+            disabled={isLoading}
+          />
+          <Button type="submit" size="icon" disabled={isLoading || !input.trim()}>
+            <Send className="h-4 w-4" />
+          </Button>
+        </form>
+      </div>
     </div>
   );
 }

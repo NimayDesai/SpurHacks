@@ -5,6 +5,9 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import AnimationPlayer from "@/components/animation-player";
 import { useAuth } from "@/lib/auth-context";
+import { ChatInterface } from "@/components/chat-interface";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card } from "@/components/ui/card";
 
 export default function Home() {
   const { user, isLoading, logout } = useAuth();
@@ -32,19 +35,33 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col">
       <header className="border-b py-4 px-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold">SpurHacks</h1>
+        <h1 className="text-2xl font-bold">SpurHacks AI</h1>
         <div className="flex items-center gap-4">
           <span>Welcome, {user.username}</span>
           <Button variant="outline" onClick={() => logout()}>Log out</Button>
         </div>
       </header>
       
-      <main className="p-6">
-        <div className="max-w-4xl mx-auto">
-          <AnimationPlayer />
-        </div>
+      <main className="flex-1 p-6 flex flex-col md:flex-row gap-6">
+        <Tabs defaultValue="chat" className="w-full max-w-6xl mx-auto">
+          <TabsList className="grid w-full grid-cols-2 mb-6">
+            <TabsTrigger value="chat">Chat</TabsTrigger>
+            <TabsTrigger value="animation">Animation</TabsTrigger>
+          </TabsList>
+          <TabsContent value="chat" className="h-[calc(100vh-12rem)]">
+            <Card className="h-full border">
+              <ChatInterface />
+            </Card>
+          </TabsContent>
+          <TabsContent value="animation">
+            <Card className="p-6">
+              <h2 className="text-xl font-semibold mb-4">Animation Preview</h2>
+              <AnimationPlayer />
+            </Card>
+          </TabsContent>
+        </Tabs>
       </main>
     </div>
   );

@@ -3,12 +3,20 @@ name = "backend"
 version = "0.1.0"
 description = "Flask backend with RESTful APIs for user authentication"
 readme = "README.md"
-requires-python = ">=3.7"
+requires-python = ">=3.9"
 dependencies = [
     "flask",
     "flask-sqlalchemy",
     "flask-bcrypt",
     "flask-jwt-extended",
     "flask-cors",
-    "manim"
+    "manim",
+    "google-generativeai",
+    "gTTS",
+    "pydub",
+    "moviepy",
+    "librosa",
+    "soundfile",
+    "numpy",
+    "scipy"
 ]

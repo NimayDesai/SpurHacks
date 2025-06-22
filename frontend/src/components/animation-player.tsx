@@ -13,7 +13,7 @@ export default function AnimationPlayer({ className }: AnimationPlayerProps) {
   const [animationUrl, setAnimationUrl] = useState<string | null>(null);
   const [promptText, setPromptText] = useState<string>('');
 
-  const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://10.200.6.212:5001/api';
+  const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://10.200.6.213:5001/api';
 
   const generateAnimation = async () => {
     if (!promptText.trim()) {

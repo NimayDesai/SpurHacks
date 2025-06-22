@@ -9,6 +9,7 @@ from flask_cors import CORS
 from models.account import db, User
 from routes.auth import auth_bp, token_blocklist
 from routes.animation import animation_bp
+from routes.gemini import gemini_bp
 
 
 def create_app():
@@ -36,6 +37,7 @@ def create_app():
     # Register blueprints
     app.register_blueprint(auth_bp)
     app.register_blueprint(animation_bp)
+    app.register_blueprint(gemini_bp)
     
     @jwt.token_in_blocklist_loader
     def check_if_token_is_revoked(jwt_header, jwt_payload):
