@@ -6,9 +6,17 @@ from flask import Flask, jsonify
 from flask_bcrypt import Bcrypt
 from flask_jwt_extended import JWTManager
 from flask_cors import CORS
+from flask_socketio import SocketIO
+from dotenv import load_dotenv
 from models.account import db, User
 from routes.auth import auth_bp, token_blocklist
 from routes.animation import animation_bp
+from routes.tavus import tavus_bp
+from routes.ai_config import ai_config_bp
+from routes.webrtc import init_webrtc_routes
+
+# Load environment variables
+load_dotenv()
 
 
 def create_app():
@@ -33,9 +41,17 @@ def create_app():
     jwt = JWTManager(app)
     CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
     
+    # Initialize SocketIO
+    socketio = SocketIO(app, cors_allowed_origins="*", logger=True, engineio_logger=True)
+    
+    # Initialize WebRTC routes
+    init_webrtc_routes(socketio)
+    
     # Register blueprints
     app.register_blueprint(auth_bp)
     app.register_blueprint(animation_bp)
+    app.register_blueprint(tavus_bp)
+    app.register_blueprint(ai_config_bp)
     
     @jwt.token_in_blocklist_loader
     def check_if_token_is_revoked(jwt_header, jwt_payload):
@@ -76,13 +92,13 @@ def create_app():
     with app.app_context():
         db.create_all()
         
-    return app
+    return app, socketio
 
 
 def main():
     """Run the application."""
-    app = create_app()
-    app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5001)))
+    app, socketio = create_app()
+    socketio.run(app, debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5002)))
 
 
 if __name__ == "__main__":
