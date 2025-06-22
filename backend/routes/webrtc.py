@@ -2,11 +2,12 @@
 
 import json
 import logging
+import time
+import os
 from flask import request
 from flask_socketio import SocketIO, emit, join_room, leave_room, rooms
 from collections import defaultdict
 import requests
-import os
 
 logger = logging.getLogger(__name__)
 
@@ -154,23 +155,23 @@ def init_webrtc_routes(socketio: SocketIO):
     def handle_request_ai_agent(data):
         """Handle request to add AI agent to room."""
         room_id = data.get('roomId', 'main-room')
+        custom_script_from_request = data.get('custom_script', '')
         
         try:
             logger.info(f"Creating Tavus AI agent for room {room_id}")
             
-            # HARDCODED AI CONFIGURATION - EDIT THESE VALUES DIRECTLY:
-            persona_instructions = "The first thing you will do is read the script and time your self according to the time stamps but don't say the time stamps out loud. Then you will respond to the user in a helpful and insightful way. If they ask questions that are irrelavent, respond in a kind way that veers them back to the subject. If they ask about a related topic that is very vast in nature (i.e. explaining something that can't be learnt quickly, recommend them to asking the program a new prompt.)"
-            custom_script = ""
-            conversation_style = "polite, insighful, focused, and helpful"
+            # Use the script from the presentation or default instructions
+            persona_instructions = "The first thing you will do is read the script and time your self according to the time stamps but don't say the time stamps out loud. Then you will respond to the user in a helpful and insightful way. If they ask questions that are irrelavent, respond in a kind way that veers them back to the subject. If they ask about a related topic that is very vast in nature (i.e. explaining something that can't be learnt quickly, recommend them to asking the program a new prompt. Ignore things like asterisks and quotation marks when you read a script)"
+            custom_script = custom_script_from_request if custom_script_from_request else "You are a helpful AI tutor ready to discuss educational topics."
+            conversation_style = "polite, insighful, focused, and helpful, super super slow paced"
             knowledge_base = "General knowledge and helpful information"
             
-            logger.info(f"Using hardcoded persona_instructions: '{persona_instructions}'")
-            logger.info(f"Using hardcoded custom_script: '{custom_script}'")
-            logger.info(f"Using hardcoded conversation_style: '{conversation_style}'")
+            logger.info(f"Using persona_instructions: '{persona_instructions}'")
+            logger.info(f"Using custom_script: '{custom_script[:100]}...'")  # Log first 100 chars
+            logger.info(f"Using conversation_style: '{conversation_style}'")
             
             # Import Tavus agent service
             from services.tavus_agent import TavusAgent
-            import os
             
             tavus_agent = TavusAgent(os.getenv('TAVUS_API_KEY', ''))
             

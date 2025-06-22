@@ -16,35 +16,37 @@ class TavusAgent:
             "Content-Type": "application/json"
         }
     
-    def create_conversation(self, replica_id: str = "r1a4e22fa0d9", persona_instructions: str = "Read the script at the start", custom_script: str = "Hi. Hawk tuah. skibidi bop bop bop yes yes.", conversation_style: str = "friendly") -> Optional[Dict[str, Any]]:
+    def create_conversation(self, replica_id: str = "r1a4e22fa0d9", persona_instructions: str = "Read the script at the start", custom_script: str = "...", conversation_style: str = "friendly") -> Optional[Dict[str, Any]]:
         """Create a conversational video with your specific replica and custom instructions."""
         try:
-            # Build comprehensive conversational context
-            conversational_context = self._build_conversational_context(persona_instructions, custom_script, conversation_style)
-            
-            # Use the conversation endpoint for real-time interaction
+            import re
+            # Remove bracketed timestamps for greeting
+            processed_script = re.sub(r"\[\d+:\d+\]", "", custom_script).strip()
+            # Compute pacing durations
+            pacing = re.findall(r"\[(\d+):(\d+)\]\s*([^\[]+)", custom_script)
+            pacing_instructions = []
+            for i in range(len(pacing) - 1):
+                m1, s1, txt = pacing[i]
+                m2, s2, _ = pacing[i+1]
+                start = int(m1) * 60 + int(s1)
+                end = int(m2) * 60 + int(s2)
+                duration = end - start
+                pacing_instructions.append(f"speak '{txt.strip()}' in {duration} seconds")
+            # Build conversational context
+            conversational_context = self._build_conversational_context(persona_instructions, processed_script, conversation_style)
+            if pacing_instructions:
+                guidance = "PACE: " + "; ".join(pacing_instructions)
+                conversational_context = f"{conversational_context} | {guidance}" if conversational_context else guidance
+
+            # Prepare API data
             data = {
                 "replica_id": replica_id,
-                "conversation_name": "SpurHacks Video Call"
+                "conversation_name": "SpurHacks Video Call",
+                "custom_greeting": processed_script,
             }
-            
-            # Use the proper Tavus API fields
             if conversational_context:
                 data["conversational_context"] = conversational_context
                 logger.info(f"Using conversational context: {conversational_context}")
-            
-            # This is the key field - custom_greeting is what the AI says when someone joins
-            if custom_script:
-                data["custom_greeting"] = custom_script
-                logger.info(f"Using custom_greeting (opening script): {custom_script}")
-            else:
-                data["custom_greeting"] = "Hi. Hawk tuah. skibidi bop bop bop yes yes."
-                logger.info("Using default custom_greeting: Hi. Hawk tuah. skibidi bop bop bop yes yes.")
-            
-            # Add callback URL if available
-            base_url = os.getenv('BASE_URL', 'http://10.200.6.212:5002')
-            if base_url:
-                data["callback_url"] = f"{base_url}/api/tavus/callback"
             
             logger.info(f"Creating conversation with data: {data}")
             

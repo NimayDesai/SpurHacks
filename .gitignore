@@ -1,0 +1,33 @@
+# Ignore environment variable files
+.env
+*.env
+.env.*
+
+# Ignore local environment overrides
+.env.local
+frontend/.env.local
+backend/.env.local
+
+# Python cache and environments
+__pycache__/
+*.py[cod]
+env/
+venv/
+.venv/
+
+# Node dependencies and build outputs
+node_modules/
+.next/
+dist/
+
+# Logs and temp files
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# macOS system files
+.DS_Store
+
+# VS Code settings
+.vscode/

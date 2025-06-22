@@ -13,10 +13,12 @@ from routes.auth import auth_bp, token_blocklist
 from routes.animation import animation_bp
 from routes.tavus import tavus_bp
 from routes.ai_config import ai_config_bp
+from routes.ai_agent import ai_agent_bp
 from routes.webrtc import init_webrtc_routes
 
 # Load environment variables
 load_dotenv()
+from routes.gemini import gemini_bp
 
 
 def create_app():
@@ -41,8 +43,17 @@ def create_app():
     jwt = JWTManager(app)
     CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
     
-    # Initialize SocketIO
-    socketio = SocketIO(app, cors_allowed_origins="*", logger=True, engineio_logger=True)
+    # Initialize SocketIO with better WebSocket configuration
+    socketio = SocketIO(
+        app, 
+        cors_allowed_origins="*", 
+        logger=False, 
+        engineio_logger=False,
+        async_mode='threading',
+        transports=['websocket', 'polling'],
+        ping_timeout=60,
+        ping_interval=25
+    )
     
     # Initialize WebRTC routes
     init_webrtc_routes(socketio)
@@ -52,6 +63,8 @@ def create_app():
     app.register_blueprint(animation_bp)
     app.register_blueprint(tavus_bp)
     app.register_blueprint(ai_config_bp)
+    app.register_blueprint(ai_agent_bp)
+    app.register_blueprint(gemini_bp)
     
     @jwt.token_in_blocklist_loader
     def check_if_token_is_revoked(jwt_header, jwt_payload):
@@ -98,7 +111,14 @@ def create_app():
 def main():
     """Run the application."""
     app, socketio = create_app()
-    socketio.run(app, debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5002)))
+    # Disable reloader to prevent restarts when manim files are created
+    socketio.run(
+        app, 
+        debug=True, 
+        host='0.0.0.0', 
+        port=int(os.environ.get('PORT', 5002)),
+        use_reloader=False
+    )
 
 
 if __name__ == "__main__":

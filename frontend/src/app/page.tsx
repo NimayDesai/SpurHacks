@@ -5,6 +5,9 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import AnimationPlayer from "@/components/animation-player";
 import { useAuth } from "@/lib/auth-context";
+import { ChatInterface } from "@/components/chat-interface";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card } from "@/components/ui/card";
 
 export default function Home() {
   const { user, isLoading, logout } = useAuth();
@@ -12,7 +15,9 @@ export default function Home() {
   
   useEffect(() => {
     if (!isLoading && !user) {
-      router.push('/login');
+      console.log('No user logged in, but allowing access for testing');
+      // Temporarily comment out redirect for testing
+      // router.push('/login');
     }
   }, [user, isLoading, router]);
 
@@ -32,49 +37,64 @@ export default function Home() {
     );
   }
 
-  if (!user) {
-    return null; // Will redirect in the useEffect
-  }
+  // Temporarily allow access without login for testing
+  // if (!user) {
+  //   return null; // Will redirect in the useEffect
+  // }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col">
       <header className="border-b py-4 px-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold">SpurHacks</h1>
+        <h1 className="text-2xl font-bold">SpurHacks AI</h1>
         <div className="flex items-center gap-4">
-          <span>Welcome, {user.username}</span>
+          <span>Welcome, {user?.username || 'Guest'}</span>
           <Button variant="outline" onClick={() => logout()}>Log out</Button>
         </div>
       </header>
       
-      <main className="p-6">
-        <div className="max-w-4xl mx-auto space-y-8">
+      <main className="flex-1 p-6">
+        <div className="max-w-6xl mx-auto space-y-8">
           {/* Quick Actions */}
           <div className="text-center space-y-4">
             <h2 className="text-3xl font-bold">Welcome to SpurHacks</h2>
             <p className="text-gray-600">Start a video call or generate animations</p>
             <div className="flex justify-center gap-4">
-              <Button 
+              {/* <Button 
                 onClick={startVideoCall}
                 size="lg"
                 className="bg-green-600 hover:bg-green-700 text-white px-8 py-3"
               >
                 🎥 Start Video Call with AI
-              </Button>
-              <Button 
+              </Button> */}
+              {/* <Button 
                 onClick={() => router.push('/meet')}
                 variant="outline"
                 size="lg"
                 className="px-8 py-3"
               >
                 📞 Join Existing Call
-              </Button>
+              </Button> */}
             </div>
           </div>
           
-          {/* Animation Player */}
-          <div className="border-t pt-8">
-            <AnimationPlayer />
-          </div>
+          {/* Tabbed Interface */}
+          <Tabs defaultValue="chat" className="w-full">
+            <TabsList className="grid w-full grid-cols-2 mb-6">
+              <TabsTrigger value="chat">Chat</TabsTrigger>
+              {/* <TabsTrigger value="animation">Animation</TabsTrigger> */}
+            </TabsList>
+            <TabsContent value="chat" className="h-[calc(100vh-16rem)]">
+              <Card className="h-full border">
+                <ChatInterface />
+              </Card>
+            </TabsContent>
+            <TabsContent value="animation">
+              <Card className="p-6">
+                <h2 className="text-xl font-semibold mb-4">Animation Preview</h2>
+                <AnimationPlayer />
+              </Card>
+            </TabsContent>
+          </Tabs>
         </div>
       </main>
     </div>
