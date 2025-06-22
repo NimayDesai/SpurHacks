@@ -18,5 +18,6 @@ dependencies = [
     "librosa",
     "soundfile",
     "numpy",
-    "scipy"
+    "scipy",
+    "anthropic>=0.54.0",
 ]
