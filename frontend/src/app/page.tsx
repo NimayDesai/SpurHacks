@@ -79,10 +79,6 @@ export default function Home() {
           
           {/* Tabbed Interface */}
           <Tabs defaultValue="chat" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-6">
-              <TabsTrigger value="chat">Chat</TabsTrigger>
-              {/* <TabsTrigger value="animation">Animation</TabsTrigger> */}
-            </TabsList>
             <TabsContent value="chat" className="h-[calc(100vh-16rem)]">
               <Card className="h-full border">
                 <ChatInterface />
