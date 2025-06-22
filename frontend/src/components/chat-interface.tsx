@@ -9,6 +9,7 @@ import { Send, Play, Video } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { QuizDisplay } from "@/components/quiz-display";
 
 interface Message {
   id: string;
@@ -25,31 +26,69 @@ interface PresentationData {
   scene_class?: string;
 }
 
+interface QuizQuestion {
+  id: number;
+  question: string;
+  options: {
+    A: string;
+    B: string;
+    C: string;
+    D: string;
+  };
+  correct_answer: string;
+  explanation: string;
+}
+
+interface QuizData {
+  questions: QuizQuestion[];
+}
+
 // Component to display inline presentation
-function PresentationDisplay({ presentationData }: { presentationData: PresentationData }) {
+function PresentationDisplay({
+  presentationData,
+}: {
+  presentationData: PresentationData;
+}) {
   const [aiAgentActive, setAiAgentActive] = useState(false);
   const [aiAgentLoading, setAiAgentLoading] = useState(false);
-  const [aiConversationUrl, setAiConversationUrl] = useState<string | null>(null);
+  const [aiConversationUrl, setAiConversationUrl] = useState<string | null>(
+    null,
+  );
   const [videoError, setVideoError] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   // Track if video has started playing on AI speech
   const [hasPlayed, setHasPlayed] = useState(false);
+  const [micAllowed, setMicAllowed] = useState(false);
+  const [quizData, setQuizData] = useState<QuizData | null>(null);
+  const [quizLoading, setQuizLoading] = useState(false);
+  const [showQuiz, setShowQuiz] = useState(false);
+  // Request microphone permission and enable mic toggle
+  const handleEnableMic = async () => {
+    try {
+      await navigator.mediaDevices.getUserMedia({ audio: true });
+      setMicAllowed(true);
+    } catch (err) {
+      console.error("Microphone permission denied", err);
+      alert("Microphone permission is required for the AI tutor to speak.");
+    }
+  };
 
   const requestAiAgent = async () => {
     setAiAgentLoading(true);
-    
+
     try {
-      const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5002/api';
-      
+      const apiBaseUrl =
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:5002/api";
+
       const response = await fetch(`${apiBaseUrl}/ai-agent/create`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           custom_script: presentationData.script,
-          room_id: 'presentation-room'
-        })
+          room_id: "presentation-room",
+        }),
       });
 
       const data = await response.json();
@@ -62,18 +101,61 @@ function PresentationDisplay({ presentationData }: { presentationData: Presentat
           videoRef.current.playbackRate = 2.0;
           videoRef.current.play().catch(() => {});
         }
-        console.log('AI agent created successfully:', data.agent_data);
+        console.log("AI agent created successfully:", data.agent_data);
       } else {
-        console.error('Failed to create AI agent:', data.error);
-        alert('Failed to create AI agent: ' + data.error);
+        console.error("Failed to create AI agent:", data.error);
+        alert("Failed to create AI agent: " + data.error);
       }
     } catch (error) {
-      console.error('Error creating AI agent:', error);
-      alert('Error creating AI agent. Please try again.');
+      console.error("Error creating AI agent:", error);
+      alert("Error creating AI agent. Please try again.");
     } finally {
       setAiAgentLoading(false);
     }
   };
+
+  // Generate quiz from the script
+  const generateQuiz = async () => {
+    setQuizLoading(true);
+
+    try {
+      const apiBaseUrl =
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:5002/api";
+
+      const response = await fetch(`${apiBaseUrl}/gemini/generate-quiz`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          script: presentationData.script,
+          num_questions: 5,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setQuizData(data.quiz);
+        setShowQuiz(true);
+        console.log("Quiz generated successfully:", data.quiz);
+      } else {
+        console.error("Failed to generate quiz:", data.error);
+        alert("Failed to generate quiz: " + data.error);
+      }
+    } catch (error) {
+      console.error("Error generating quiz:", error);
+      alert("Error generating quiz. Please try again.");
+    } finally {
+      setQuizLoading(false);
+    }
+  };
+
+  const handleRetakeQuiz = () => {
+    generateQuiz();
+  };
+
+  // useEffect removed: video starts in requestAiAgent when AI agent active
 
   return (
     <div className="space-y-4 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-950/20 dark:to-blue-950/20 p-6 rounded-lg border">
@@ -83,7 +165,8 @@ function PresentationDisplay({ presentationData }: { presentationData: Presentat
           🎓 Educational Presentation: {presentationData.prompt}
         </h3>
         <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
-          Your personalized learning experience with AI-generated video and interactive tutor
+          Your personalized learning experience with AI-generated video and
+          interactive tutor
         </p>
       </div>
 
@@ -102,15 +185,18 @@ function PresentationDisplay({ presentationData }: { presentationData: Presentat
       {/* AI Tutor + Video Section */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm">🤖 Interactive AI Tutor & 🎬 Animation</CardTitle>
+          <CardTitle className="text-sm">
+            🤖 Interactive AI Tutor & 🎬 Animation
+          </CardTitle>
         </CardHeader>
         <CardContent>
           {!aiAgentActive && !aiAgentLoading && (
             <div className="text-center space-y-3">
               <p className="text-sm text-muted-foreground">
-                Start a conversation with your AI tutor who already knows this script!
+                Start a conversation with your AI tutor who already knows this
+                script!
               </p>
-              <Button 
+              <Button
                 onClick={requestAiAgent}
                 className="bg-purple-600 hover:bg-purple-700 text-white"
                 size="sm"
@@ -153,6 +239,41 @@ function PresentationDisplay({ presentationData }: { presentationData: Presentat
           )}
         </CardContent>
       </Card>
+
+      {/* Quiz Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm">🧠 Test Your Understanding</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {!showQuiz && !quizLoading && (
+            <div className="text-center space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Test your knowledge with AI-generated questions based on this
+                presentation
+              </p>
+              <Button
+                onClick={generateQuiz}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+                size="sm"
+              >
+                📝 Generate Quiz
+              </Button>
+            </div>
+          )}
+
+          {quizLoading && (
+            <div className="text-center space-y-3">
+              <div className="inline-block animate-spin h-6 w-6 border-4 border-current border-t-transparent rounded-full"></div>
+              <p className="text-sm">Generating quiz questions...</p>
+            </div>
+          )}
+
+          {showQuiz && quizData && (
+            <QuizDisplay quizData={quizData} onRetakeQuiz={handleRetakeQuiz} />
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -162,7 +283,8 @@ export function ChatInterface() {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "welcome",
-      content: "Hi there! I'm your AI assistant. Ask me about any topic and I'll create an educational presentation with both a video animation and an interactive AI tutor for you!",
+      content:
+        "Hi there! I'm your AI assistant. Ask me about any topic and I'll create an educational presentation with both a video animation and an interactive AI tutor for you!",
       role: "assistant",
       timestamp: new Date(),
     },
@@ -172,9 +294,10 @@ export function ChatInterface() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const { token, user } = useAuth();
-  
+
   // API URL - use environment variable or default
-  const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5002/api';
+  const apiBaseUrl =
+    process.env.NEXT_PUBLIC_API_URL || "http://localhost:5002/api";
 
   // Auto-resize textarea
   useEffect(() => {
@@ -211,41 +334,44 @@ export function ChatInterface() {
     try {
       // Get the latest message as the prompt
       const prompt = userMessage.content;
-      
-      console.log('Making API request with prompt:', prompt);
-      console.log('API URL:', `${apiBaseUrl}/gemini/generate-presentation`);
-      
-      // Make API call to generate-presentation endpoint for full workflow
-      const response = await fetch(`${apiBaseUrl}/gemini/generate-presentation`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        // Send the previously captured prompt, not the cleared input
-        body: JSON.stringify({ prompt }),
-      });
 
-      console.log('API response status:', response.status);
-      console.log('API response ok:', response.ok);
+      console.log("Making API request with prompt:", prompt);
+      console.log("API URL:", `${apiBaseUrl}/gemini/generate-presentation`);
+
+      // Make API call to generate-presentation endpoint for full workflow
+      const response = await fetch(
+        `${apiBaseUrl}/gemini/generate-presentation`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          // Send the previously captured prompt, not the cleared input
+          body: JSON.stringify({ prompt }),
+        },
+      );
+
+      console.log("API response status:", response.status);
+      console.log("API response ok:", response.ok);
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('API error response:', errorText);
+        console.error("API error response:", errorText);
         throw new Error(`API Error: ${response.status} - ${errorText}`);
       }
 
       const data = await response.json();
-      
+
       if (data.success) {
         // Show an inline presentation with video and AI agent
         const presentationMessage: Message = {
           id: (Date.now() + 1).toString(),
           content: `PRESENTATION_READY:${JSON.stringify({
             script: data.script,
-            video_url: `${apiBaseUrl.replace('/api', '')}${data.video_url}`,
+            video_url: `${apiBaseUrl.replace("/api", "")}${data.video_url}`,
             prompt: prompt,
             video_path: data.video_path,
-            scene_class: data.scene_class
+            scene_class: data.scene_class,
           })}`,
           role: "assistant",
           timestamp: new Date(),
@@ -256,11 +382,12 @@ export function ChatInterface() {
       }
     } catch (error) {
       console.error("Error calling Gemini API:", error);
-      
+
       // Show error message to user
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
-        content: "Sorry, I encountered an error creating your presentation. Please try again later.",
+        content:
+          "Sorry, I encountered an error creating your presentation. Please try again later.",
         role: "assistant",
         timestamp: new Date(),
       };
@@ -284,7 +411,9 @@ export function ChatInterface() {
           {messages.map((message) => {
             // Check if this is a presentation ready message
             if (message.content.startsWith("PRESENTATION_READY:")) {
-              const presentationData = JSON.parse(message.content.replace("PRESENTATION_READY:", ""));
+              const presentationData = JSON.parse(
+                message.content.replace("PRESENTATION_READY:", ""),
+              );
               return (
                 <div key={message.id} className="flex justify-start">
                   <div className="flex items-start gap-2.5 w-full max-w-5xl">
@@ -293,7 +422,9 @@ export function ChatInterface() {
                       <AvatarImage src="/robot.png" alt="AI" />
                     </Avatar>
                     <div className="w-full">
-                      <PresentationDisplay presentationData={presentationData} />
+                      <PresentationDisplay
+                        presentationData={presentationData}
+                      />
                       <span className="text-xs opacity-50 block mt-2">
                         {message.timestamp.toLocaleTimeString()}
                       </span>
@@ -334,7 +465,9 @@ export function ChatInterface() {
                         : "bg-muted"
                     }`}
                   >
-                    <p className="whitespace-pre-wrap text-sm">{message.content}</p>
+                    <p className="whitespace-pre-wrap text-sm">
+                      {message.content}
+                    </p>
                     <span className="text-xs opacity-50 block mt-1">
                       {message.timestamp.toLocaleTimeString()}
                     </span>
@@ -352,9 +485,18 @@ export function ChatInterface() {
                 </Avatar>
                 <div className="px-4 py-2 rounded-lg bg-muted">
                   <div className="flex gap-1">
-                    <div className="w-2 h-2 rounded-full bg-current animate-bounce" style={{ animationDelay: "0ms" }}></div>
-                    <div className="w-2 h-2 rounded-full bg-current animate-bounce" style={{ animationDelay: "150ms" }}></div>
-                    <div className="w-2 h-2 rounded-full bg-current animate-bounce" style={{ animationDelay: "300ms" }}></div>
+                    <div
+                      className="w-2 h-2 rounded-full bg-current animate-bounce"
+                      style={{ animationDelay: "0ms" }}
+                    ></div>
+                    <div
+                      className="w-2 h-2 rounded-full bg-current animate-bounce"
+                      style={{ animationDelay: "150ms" }}
+                    ></div>
+                    <div
+                      className="w-2 h-2 rounded-full bg-current animate-bounce"
+                      style={{ animationDelay: "300ms" }}
+                    ></div>
                   </div>
                 </div>
               </div>
@@ -374,7 +516,11 @@ export function ChatInterface() {
             className="resize-none min-h-[40px]"
             disabled={isLoading}
           />
-          <Button type="submit" size="icon" disabled={isLoading || !input.trim()}>
+          <Button
+            type="submit"
+            size="icon"
+            disabled={isLoading || !input.trim()}
+          >
             <Send className="h-4 w-4" />
           </Button>
         </form>

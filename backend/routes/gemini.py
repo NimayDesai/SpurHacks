@@ -5,8 +5,8 @@ import subprocess
 import time
 import hashlib
 import glob
+import json
 from flask import Blueprint, request, jsonify, send_file
-from flask_jwt_extended import jwt_required, get_jwt_identity
 from anthropic import Anthropic
 from dotenv import load_dotenv
 
@@ -35,16 +35,16 @@ def extract_code_from_claude_response(response_text):
     """Extract Python code from Claude's response, which might contain markdown code blocks."""
     # Look for Python code blocks in markdown format (```python ... ```)
     code_blocks = re.findall(r'```python\n(.*?)\n```', response_text, re.DOTALL)
-    
+
     if code_blocks:
         # Return the first complete Python code block
         return code_blocks[0]
-    
+
     # If no code blocks found but there are triple backticks, try to extract anything between them
     code_blocks = re.findall(r'```\n(.*?)\n```', response_text, re.DOTALL)
     if code_blocks:
         return code_blocks[0]
-    
+
     # If no code blocks found, try to find any code that looks like Python
     if 'from manim import' in response_text or 'import manim' in response_text:
         lines = response_text.split('\n')
@@ -53,11 +53,11 @@ def extract_code_from_claude_response(response_text):
             if 'from manim import' in line or 'import manim' in line:
                 start_idx = i
                 break
-        
+
         if start_idx is not None:
             # Return from first import to the end
             return '\n'.join(lines[start_idx:])
-    
+
     # If everything else fails, return the whole response
     return response_text
 
@@ -68,14 +68,14 @@ def serve_video(video_path):
         # Get the full path to the video file
         manim_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'manim_gens')
         full_video_path = os.path.join(manim_dir, video_path)
-        
+
         # Check if file exists
         if not os.path.exists(full_video_path):
             return jsonify({"error": "Video file not found"}), 404
-        
+
         # Serve the video file
         return send_file(full_video_path, mimetype='video/mp4')
-        
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -141,7 +141,7 @@ def generate_manim_code():
             return jsonify({"error": "No data provided"}), 400
 
         script = data.get('script')
-        
+
         if not script:
             return jsonify({"error": "Script is required"}), 400
 
@@ -193,38 +193,38 @@ IMPORTANT: Provide ONLY the complete Python code with no explanations, comments 
                 {"role": "user", "content": full_prompt}
             ]
         )
-        
+
         # Extract the text from Claude's response
         response_text = response.content[0].text
-        
+
         # Extract code from Claude's response
         manim_code = extract_code_from_claude_response(response_text)
-        
+
         # Create manim_gens directory if it doesn't exist
         manim_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'manim_gens')
         if not os.path.exists(manim_dir):
             os.makedirs(manim_dir)
-        
+
         # Create a unique filename using timestamp and a short hash of the script
         import hashlib
         import time
-        
+
         timestamp = time.strftime("%Y%m%d_%H%M%S")
         script_hash = hashlib.md5(script.encode()).hexdigest()[:8]
         filename = f"manim_script_{timestamp}_{script_hash}.py"
         filepath = os.path.join(manim_dir, filename)
-        
+
         # Write code to file
         with open(filepath, 'w') as f:
             f.write(manim_code)
-        
+
         # Get the scene class name from the code
         scene_class = None
         for line in manim_code.split('\n'):
             if line.startswith('class ') and '(Scene)' in line:
                 scene_class = line.split('class ')[1].split('(')[0].strip()
                 break
-        
+
         run_command = f"manim -pql {filepath}" + (f" {scene_class}" if scene_class else "")
 
         return jsonify({
@@ -250,7 +250,7 @@ def generate_presentation():
         print(f"Request method: {request.method}")
         print(f"Request headers: {dict(request.headers)}")
         print(f"Request content type: {request.content_type}")
-        
+
         data = request.get_json()
         print(f"Request data: {data}")
 
@@ -274,7 +274,7 @@ def generate_presentation():
             "success": False,
             "error": f"Early processing error: {str(e)}"
         }), 500
-        
+
     try:
 
         # Step 1: Generate educational script using Gemini
@@ -294,7 +294,7 @@ Instructions:
 
 The result should feel like the voiceover from a 3Blue1Brown video: elegant, thoughtful, and tightly focused on the concept.
 """
-        
+
         script_prompt = f"{script_instructions}\n\n{prompt}"
         script_response = model.generate_content(script_prompt)
         generated_script = script_response.text
@@ -339,7 +339,7 @@ IMPORTANT: Provide ONLY the complete Python code with no explanations, comments 
 """
 
         manim_prompt = f"{manim_instructions}\n\nScript:\n{generated_script}"
-        
+
         # Generate Manim code using Claude
         claude_response = anthropic_client.messages.create(
             model="claude-sonnet-4-20250514",
@@ -349,30 +349,30 @@ IMPORTANT: Provide ONLY the complete Python code with no explanations, comments 
                 {"role": "user", "content": manim_prompt}
             ]
         )
-        
+
         # Extract the text from Claude's response
         response_text = claude_response.content[0].text
-        
+
         # Extract code from Claude's response
         manim_code = extract_code_from_claude_response(response_text)
-        
+
         # Step 3: Create and save the Manim file
         import hashlib
         import time
         import subprocess
         import glob
-        
+
         # Create manim_gens directory if it doesn't exist
         manim_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'manim_gens')
         if not os.path.exists(manim_dir):
             os.makedirs(manim_dir)
-        
+
         # Create a unique filename
         timestamp = time.strftime("%Y%m%d_%H%M%S")
         script_hash = hashlib.md5(generated_script.encode()).hexdigest()[:8]
         filename = f"presentation_{timestamp}_{script_hash}.py"
         filepath = os.path.join(manim_dir, filename)
-        
+
         # Write code to file with LaTeX configuration
         manim_code_with_config = f"""# Manim configuration for LaTeX
 import os
@@ -383,7 +383,7 @@ if sys.platform.startswith('win'):
     os.environ['PATH'] += r';C:\\Program Files\\MiKTeX\\miktex\\bin\\x64'
 elif sys.platform.startswith('darwin'):  # macOS
     os.environ['PATH'] += ':/usr/local/bin:/opt/homebrew/bin'
-    
+
 from manim import *
 
 # Configure LaTeX template
@@ -395,23 +395,23 @@ config.tex_template.add_to_preamble(r"\\usepackage{{physics}}")
 
 {manim_code}
 """
-        
+
         with open(filepath, 'w') as f:
             f.write(manim_code_with_config)
-        
+
         # Get the scene class name from the code
         scene_class = None
         for line in manim_code.split('\n'):
             if line.startswith('class ') and '(Scene)' in line:
                 scene_class = line.split('class ')[1].split('(')[0].strip()
                 break
-        
+
         if not scene_class:
             return jsonify({
                 "success": False,
                 "error": "Could not find scene class in generated Manim code"
             }), 400
-        
+
         # Step 4: Run Manim to generate the video
         try:
             # Run manim command to generate video
@@ -424,24 +424,24 @@ config.tex_template.add_to_preamble(r"\\usepackage{{physics}}")
                 text=True,
                 timeout=120  # 2 minute timeout
             )
-            
+
             if result.returncode != 0:
                 return jsonify({
                     "success": False,
                     "error": f"Manim execution failed: {result.stderr}",
                     "stdout": result.stdout
                 }), 400
-            
+
             # Find the generated video file
             video_pattern = os.path.join(manim_dir, "media", "videos", os.path.splitext(filename)[0], "480p15", "*.mp4")
             video_files = glob.glob(video_pattern)
-            
+
             if not video_files:
                 return jsonify({
                     "success": False,
                     "error": "Video file not found after Manim execution"
                 }), 400
-            
+
             video_path = video_files[0]
             # Get relative path for serving
             video_filename = os.path.basename(video_path)
@@ -489,6 +489,126 @@ config.tex_template.add_to_preamble(r"\\usepackage{{physics}}")
     except Exception as e:
         print(f"Error in generate_presentation: {str(e)}")
         print(f"Error type: {type(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+
+@gemini_bp.route('/generate-quiz', methods=['POST'])
+def generate_quiz():
+    """Generate multiple choice quiz questions based on educational script."""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+
+        script = data.get('script')
+        num_questions = data.get('num_questions', 5)  # Default to 5 questions
+
+        if not script:
+            return jsonify({"error": "Script is required"}), 400
+
+        # Create a prompt for generating quiz questions
+        quiz_prompt = f"""
+Based on the following educational script, generate {num_questions} multiple choice questions that test understanding of the key concepts.
+
+Script:
+{script}
+
+Requirements:
+1. Each question should test a different important concept from the script
+2. Provide exactly 4 answer choices (A, B, C, D) for each question
+3. Make sure only one answer is correct
+4. Include a brief explanation for why the correct answer is right
+5. Make questions challenging but fair
+6. Focus on conceptual understanding, not just memorization
+
+Return your response in the following JSON format:
+{{
+    "questions": [
+        {{
+            "id": 1,
+            "question": "Question text here?",
+            "options": {{
+                "A": "First option",
+                "B": "Second option",
+                "C": "Third option",
+                "D": "Fourth option"
+            }},
+            "correct_answer": "A",
+            "explanation": "Explanation of why this answer is correct"
+        }}
+    ]
+}}
+
+Make sure the JSON is valid and properly formatted.
+"""
+
+        # Generate quiz using Gemini
+        response = model.generate_content(quiz_prompt)
+        response_text = response.text
+
+        # Try to extract JSON from the response
+
+        # Clean up the response text - remove markdown code blocks if present
+        if '```json' in response_text:
+            json_start = response_text.find('```json') + 7
+            json_end = response_text.find('```', json_start)
+            response_text = response_text[json_start:json_end].strip()
+        elif '```' in response_text:
+            json_start = response_text.find('```') + 3
+            json_end = response_text.find('```', json_start)
+            response_text = response_text[json_start:json_end].strip()
+
+        try:
+            quiz_data = json.loads(response_text)
+
+            # Validate the structure
+            if 'questions' not in quiz_data:
+                raise ValueError("Invalid quiz format: missing 'questions' key")
+
+            for i, question in enumerate(quiz_data['questions']):
+                required_keys = ['id', 'question', 'options', 'correct_answer', 'explanation']
+                for key in required_keys:
+                    if key not in question:
+                        raise ValueError(f"Question {i+1} missing required key: {key}")
+
+                # Validate options
+                if not isinstance(question['options'], dict):
+                    raise ValueError(f"Question {i+1} options must be a dictionary")
+
+                required_options = ['A', 'B', 'C', 'D']
+                for option in required_options:
+                    if option not in question['options']:
+                        raise ValueError(f"Question {i+1} missing option {option}")
+
+                # Validate correct answer
+                if question['correct_answer'] not in required_options:
+                    raise ValueError(f"Question {i+1} has invalid correct answer")
+
+            return jsonify({
+                "success": True,
+                "quiz": quiz_data
+            }), 200
+
+        except json.JSONDecodeError as e:
+            return jsonify({
+                "success": False,
+                "error": f"Failed to parse quiz JSON: {str(e)}",
+                "raw_response": response_text
+            }), 500
+        except ValueError as e:
+            return jsonify({
+                "success": False,
+                "error": f"Invalid quiz structure: {str(e)}",
+                "raw_response": response_text
+            }), 500
+
+    except Exception as e:
+        print(f"Error in generate_quiz: {str(e)}")
         import traceback
         traceback.print_exc()
         return jsonify({
